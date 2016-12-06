@@ -1,4 +1,3 @@
-```
 #Naive Bayes Classifier
 
 import cPickle as pickle
@@ -85,4 +84,3 @@ predictions = naivebayes(data,parameters,priors)
 df['Predictions'] = predictions
 accuracy = accuracy_calculator(df)
 print accuracy
-```
