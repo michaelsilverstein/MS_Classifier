@@ -1,3 +1,6 @@
+#Michael Silverstein
+#Boston University
+#BE 562 - Computational Biology
 #Naive Bayes Classifier
 
 import cPickle as pickle
@@ -5,25 +8,18 @@ import pandas as pd
 import numpy as np
 import math
 
-def normalize(df,columns):
-    #data = Pandas dataframe
-    #Columns = columns containing Data
-    index = df.index
-    cols = df.columns
-    data = df[columns].as_matrix()
-    data = data.astype(float)
-    err_states = np.seterr(divide='raise')
-    ignored_states = np.seterr(**err_states)
-    a = np.array([np.divide(data[i],np.nansum(data[i])) for i in range(len(data))])
-    new_df = pd.DataFrame(data=a,index=index,columns=columns)
-    other_labels = list(set(cols.values.tolist()) - set(columns))
-    new_df[other_labels] = df[other_labels]
-    new_df = new_df[cols] #Rearrange columns
-    return new_df
 
-def gaussian(x,mean,std):
-    #Gaussian distribtuion
-    return math.exp(-0.5*math.pow((x-mean)/std,2))
+def cov_mat_calc(data):
+    #Calculates covariance matrix
+    #|Input: Data BY CLASS
+    #|Output: Dictionary of covariance matrix by class
+    cov_matrices = {}
+    for label in labels:
+        d = data[label]
+        #https://en.wikipedia.org/wiki/Multivariate_normal_distribution#Estimation_of_parameters
+        cov_matrices[label] = float(1)/len(d)*np.sum(np.array(np.dot(np.array([x-d.mean()]).T,np.array([x-d.mean()])))
+                                                     for x in np.array(d))
+    return cov_matrices
 
 def priors_calc(data):
     #Calculates priors based off of frequency in data (counting)
@@ -37,25 +33,36 @@ def priors_calc(data):
     return priors
 
 def class_parameterizer(data):
-    #Calculates parameters (mean, std) for each feature for each class
-    #parameters = {'CLASS1' : [[mean1,std1],[mean2,std2],...,[meanN,stdN],CLASS2 : [...],...'CLASSn':[...]}
-    by_class = [data[data.Labels==label]for label in labels]
-    means = [by_class[i].mean() for i in range(len(by_class))]
-    stds =   [by_class[i].std() for i in range(len(by_class))]
+    #Calculates parameters (mean, cov) for each feature for each class
+    #parameters = {'CLASS1' : [mean1 ,cov1],...,'CLASS_N' : [mean_N, cov_N]}
+    cov_matrices = cov_mat_calc(data)
     parameters = {}
-    for i in range(len(labels)):
-        parameters[labels[i]] = [[means[i][x],stds[i][x]] for x in range(len(means[0]))]
+    for label in labels:
+        parameters[label] = [np.array(data[label].mean()),cov_matrices[label]]
     return parameters
+
+def multi_variate(x,u,cov):
+    #Calculate P(Class | X, parameters)
+    # https://en.wikipedia.org/wiki/Multivariate_normal_distribution
+    #| u = mean, cov = covariance matrix
+    #|f_x(x_1,...,x_k) = e^(-1/2 * (x-u).T * inv(cov) * (x-u))
+    #|                   ------------------------------------
+    #|                               sqrt([2*pi]^k*det(cov)))
+    cov = np.matrix(cov)
+    det_cov = np.linalg.det(cov)
+    x_mu = np.matrix(x-u)
+
+    numerator = math.exp(-0.5*x_mu*cov.I*x_mu.T)
+    normalization = 1/(math.sqrt(math.pow(2*math.pi,len(x))*det_cov))
+    return numerator*normalization
 
 def naivebayes(data,parameters,priors):
     # G(x) = argmax(P(X_i|Class,params)P(X_i))
     predicted_labels = []
-    for i in range(len(data)):
+    for x in data:
         probs_by_class = {}
         for label in labels:
-            p = [gaussian(x,parameters[label][feature][0],parameters[label][feature][1])
-                 for x in data.iloc[i,:] for feature in range(len(cols))]
-            probs_by_class[label] = np.prod(p)*priors[label]
+            probs_by_class[label] = multi_variate(x,parameters[label][0],parameters[label][1])*priors[label]
         predicted_labels.append(max(probs_by_class,key=probs_by_class.get))
     return predicted_labels
 
@@ -74,13 +81,21 @@ def accuracy_calculator(data):
 df = pickle.load(open('GeneralLabeleddata_NOTnormalized.p','rb'))
 cols = df.columns.values.tolist()[3:]
 labels = list(set(df['Labels'])) ##GLOBAL
-# df = normalize(df,cols)
-df = df.fillna(value=0)
-parameters = class_parameterizer(df)
+df = df.fillna(value=0) #Remove NaNs
 
-priors = priors_calc(df)
-data = df.iloc[:,3:]
-predictions = naivebayes(data,parameters,priors)
-df['Predictions'] = predictions
-accuracy = accuracy_calculator(df)
-print accuracy
+interesting_cols = ['Subject','Disease','Labels','Actinobacteria', 'Bacteroidetes', 'Euryarchaeota', 'Firmicutes', 'Fusobacteria', 'Proteobacteria', 'Tenericutes', 'Verrucomicrobia']
+df = df[interesting_cols]
+#Filter and organize data by class
+by_class = {}
+for label in labels:
+    by_class[label] = df[df.Labels == label].iloc[:,3:]
+
+parameters = class_parameterizer(by_class) #Calculates mean and covariance for each class
+priors = priors_calc(df) #Calculate prior probabilites for each class
+
+data = np.array(df.iloc[:,3:])
+
+predicted_labels = naivebayes(data,parameters,priors)
+print predicted_labels
+df['Predictions'] = predicted_labels
+print accuracy_calculator(df)
