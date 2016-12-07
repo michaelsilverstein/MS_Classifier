@@ -55,7 +55,7 @@ def naivebayes(data,parameters,priors):
         for label in labels:
             p = [gaussian(x,parameters[label][feature][0],parameters[label][feature][1])
                  for x in data.iloc[i,:] for feature in range(len(cols))]
-            probs_by_class[label] = [1*x for x in p][-1]*priors[label]
+            probs_by_class[label] = np.prod(p)*priors[label]
         predicted_labels.append(max(probs_by_class,key=probs_by_class.get))
     return predicted_labels
 
