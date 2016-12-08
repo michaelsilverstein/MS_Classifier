@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 import math
 pd.options.mode.chained_assignment = None  # default='warn'
-
+#Labels is a global variable
 
 def cov_mat_calc(data):
     #Calculates covariance matrix
