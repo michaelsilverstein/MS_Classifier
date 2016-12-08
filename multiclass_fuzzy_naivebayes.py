@@ -7,6 +7,7 @@ import cPickle as pickle
 import pandas as pd
 import numpy as np
 import math
+pd.options.mode.chained_assignment = None  # default='warn'
 
 
 def cov_mat_calc(data):
@@ -51,51 +52,30 @@ def multi_variate(x,u,cov):
     cov = np.matrix(cov)
     det_cov = np.linalg.det(cov)
     x_mu = np.matrix(x-u)
-
     numerator = math.exp(-0.5*x_mu*cov.I*x_mu.T)
     normalization = 1/(math.sqrt(math.pow(2*math.pi,len(x))*det_cov))
     return numerator*normalization
 
-def naivebayes(data,parameters,priors):
+def naivebayes(data,parameters,priors,fuzzy=True):
     # G(x) = argmax(P(X_i|Class,params)P(X_i))
     predicted_labels = []
     for x in data:
         probs_by_class = {}
         for label in labels:
             probs_by_class[label] = multi_variate(x,parameters[label][0],parameters[label][1])*priors[label]
-        predicted_labels.append(max(probs_by_class,key=probs_by_class.get))
+        if fuzzy:
+            norm_probs = [probs_by_class[label]/sum(probs_by_class.values()) for label in labels]
+            predicted_labels.append(np.random.choice(labels,p=norm_probs))
+        else:
+            predicted_labels.append(max(probs_by_class,key=probs_by_class.get))
     return predicted_labels
 
 def accuracy_calculator(data):
-    correct = data['Labels']
-    predictions = data['Predictions']
+    correct = data['Labels'].tolist()
+    predictions = data['Predictions'].tolist()
     total = len(correct)
     count = 0
     for i in range(len(correct)):
         if correct[i] == predictions[i]:
             count += 1
     return float(count)/total
-############
-#   MAIN   #
-############
-df = pickle.load(open('GeneralLabeleddata_NOTnormalized.p','rb'))
-cols = df.columns.values.tolist()[3:]
-labels = list(set(df['Labels'])) ##GLOBAL
-df = df.fillna(value=0) #Remove NaNs
-
-interesting_cols = ['Subject','Disease','Labels','Actinobacteria', 'Bacteroidetes', 'Euryarchaeota', 'Firmicutes', 'Fusobacteria', 'Proteobacteria', 'Tenericutes', 'Verrucomicrobia']
-df = df[interesting_cols]
-#Filter and organize data by class
-by_class = {}
-for label in labels:
-    by_class[label] = df[df.Labels == label].iloc[:,3:]
-
-parameters = class_parameterizer(by_class) #Calculates mean and covariance for each class
-priors = priors_calc(df) #Calculate prior probabilites for each class
-
-data = np.array(df.iloc[:,3:])
-
-predicted_labels = naivebayes(data,parameters,priors)
-print predicted_labels
-df['Predictions'] = predicted_labels
-print accuracy_calculator(df)
