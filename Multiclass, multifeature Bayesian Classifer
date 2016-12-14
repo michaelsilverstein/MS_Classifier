@@ -2,7 +2,8 @@
 #Boston University
 #BE 562 - Computational Biology
 #Bayesian Classifier
-#Can 
+#Uses either Naive Bayes (product of individual normal univariate distributions) or Non-Naive Bayes (multivariate distribution)
+#for each class
 
 import cPickle as pickle
 import pandas as pd
