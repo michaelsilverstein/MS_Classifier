@@ -2,6 +2,7 @@
 #Boston University
 #BE 562 - Computational Biology
 #Bayesian Classifier
+#Can 
 
 import cPickle as pickle
 import pandas as pd
