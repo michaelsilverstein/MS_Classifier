@@ -1,9 +1,9 @@
 #Michael Silverstein
 #Boston University
 #BE 562 - Computational Biology
-#Bayesian Classifier
-#Uses either Naive Bayes (product of individual normal univariate distributions) or Non-Naive Bayes (multivariate distribution)
-#for each class
+#Naive Bayes Classifier
+#Uses either Naive Bayes (product of individual normal univariate distributions)
+# or Non-Naive Bayes (multivariate distribution) for each class
 
 import cPickle as pickle
 import pandas as pd
@@ -117,7 +117,8 @@ def naivebayes(data,parameters,priors,method='m'):
             if method == 'm': #Multivariate distribution (Non-Naive Bayes)
                 probs_by_class[label] = multivariate(x,u,cov)*priors[label]
             if method == 'n': #Prodcut of univariate distributions (Naive Bayes)
-                probs_by_class[label] = reduce(lambda x,y:x*y,[univariate(x[i],u[i],std[i]) for i in range(len(x))])
+                probs_by_class[label] = \
+                    reduce(lambda x,y:x*y,[univariate(x[i],u[i],std[i]) for i in range(len(x))])*priors[label]
             #"Fuzzify" - Assign label stochastically
         norm_probs = [probs_by_class[label]/sum(probs_by_class.values()) for label in labels]
         predicted_labels.append(np.random.choice(labels, p=norm_probs))
